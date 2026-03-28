@@ -3,11 +3,14 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/auth-store';
+import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts';
 import { Sidebar } from './sidebar';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, loadProfile } = useAuthStore();
   const router = useRouter();
+
+  useKeyboardShortcuts();
 
   useEffect(() => {
     loadProfile();

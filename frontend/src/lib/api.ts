@@ -209,6 +209,47 @@ class ApiClient {
   seedNeighborhoodData(records: any[]) {
     return this.request<any>('/neighborhood/bulk', { method: 'POST', body: JSON.stringify({ records }) });
   }
+
+  // Analytics
+  getMessagingAnalytics() {
+    return this.request<any>('/analytics/messaging');
+  }
+
+  getScoreAnalytics() {
+    return this.request<any>('/analytics/scores');
+  }
+
+  getCampaignAnalyticsOverview() {
+    return this.request<any>('/analytics/campaigns');
+  }
+
+  getHandoffAnalytics() {
+    return this.request<any>('/analytics/handoffs');
+  }
+
+  getClassificationAnalytics() {
+    return this.request<any>('/analytics/classifications');
+  }
+
+  // Audit
+  getAuditLogs(params?: Record<string, string>) {
+    const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.request<any>(`/audit/logs${qs}`);
+  }
+
+  getAiDecisions(params?: Record<string, string>) {
+    const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.request<any>(`/audit/ai-decisions${qs}`);
+  }
+
+  // Compliance
+  getComplianceStatus() {
+    return this.request<any>('/compliance/status');
+  }
+
+  getDncList() {
+    return this.request<any>('/compliance/dnc');
+  }
 }
 
 export const api = new ApiClient();

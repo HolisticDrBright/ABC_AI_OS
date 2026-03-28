@@ -16,6 +16,9 @@ import openclawRoutes from './routes/openclaw.js';
 import fubRoutes from './routes/followupboss.js';
 import taskRoutes from './routes/tasks.js';
 import neighborhoodRoutes from './routes/neighborhood.js';
+import analyticsRoutes from './routes/analytics.js';
+import auditRoutes from './routes/audit.js';
+import complianceRoutes from './routes/compliance.js';
 
 const app = new Hono();
 
@@ -47,6 +50,11 @@ app.route('/api/neighborhood', neighborhoodRoutes);
 
 // AI
 app.route('/api/ai', aiRoutes);
+
+// Analytics, Audit, Compliance
+app.route('/api/analytics', analyticsRoutes);
+app.route('/api/audit', auditRoutes);
+app.route('/api/compliance', complianceRoutes);
 
 // Webhooks (unauthenticated — validated by signature)
 app.route('/api/webhooks', webhookRoutes);

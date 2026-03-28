@@ -14,6 +14,7 @@ const navItems = [
   { href: '/openclaw', label: 'Research', icon: '⊛', shortcut: 'R' },
   { href: '/playbooks', label: 'Playbooks', icon: '☰', shortcut: 'P' },
   { href: '/analytics', label: 'Analytics', icon: '◧', shortcut: 'A' },
+  { href: '/audit', label: 'Audit Trail', icon: '◈', shortcut: 'T' },
   { href: '/settings', label: 'Settings', icon: '⚙', shortcut: 'S' },
 ];
 
