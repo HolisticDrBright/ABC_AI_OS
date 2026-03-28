@@ -235,9 +235,75 @@ export async function processInboundWebhook(payload: {
   });
 
   if (!identity) {
-    console.warn(`[Twilio] Inbound from unknown: ${payload.From}`);
-    // Could create a new lead here for inbound routing
-    return { action: 'unknown_sender' };
+    // Inbound lead routing: create new lead from unknown sender
+    // Find default org (first org — production should route by Twilio number)
+    const defaultOrg = await db.organization.findFirst();
+    if (!defaultOrg) {
+      console.warn(`[Twilio] Inbound from unknown, no org: ${payload.From}`);
+      return { action: 'no_organization' };
+    }
+
+    const lead = await db.lead.create({
+      data: {
+        organizationId: defaultOrg.id,
+        phone: payload.From,
+        fullName: `Inbound ${payload.From}`,
+        sourceLabel: 'inbound_sms',
+        inboundSource: 'sms',
+        inboundReceivedAt: new Date(),
+        leadStatus: 'new',
+      },
+    });
+
+    await db.leadIdentity.create({
+      data: {
+        leadId: lead.id,
+        normalizedPhone: normalizedPhone,
+        twilioPrimaryPhone: payload.From,
+      },
+    });
+
+    // Store the inbound message
+    const message = await db.message.create({
+      data: {
+        organizationId: defaultOrg.id,
+        leadId: lead.id,
+        direction: 'inbound',
+        channel: 'sms',
+        provider: 'twilio',
+        providerMessageId: payload.MessageSid,
+        body: payload.Body,
+        status: 'received',
+      },
+    });
+
+    // Create conversation
+    await db.conversation.create({
+      data: {
+        organizationId: defaultOrg.id,
+        leadId: lead.id,
+        channel: 'sms',
+        lastMessageAt: new Date(),
+      },
+    });
+
+    await writeAuditLog({
+      organizationId: defaultOrg.id,
+      entityType: 'lead',
+      entityId: lead.id,
+      action: 'inbound_lead_created',
+      metadata: { phone: payload.From, source: 'sms' },
+    });
+
+    // Fire event to trigger auto-scoring + NBA assignment
+    await emitEvent('lead.created', { leadId: lead.id, organizationId: defaultOrg.id });
+    await emitEvent('lead.inbound_received', {
+      leadId: lead.id,
+      messageId: message.id,
+      organizationId: defaultOrg.id,
+    });
+
+    return { action: 'inbound_lead_created', leadId: lead.id };
   }
 
   // STOP/opt-out detection

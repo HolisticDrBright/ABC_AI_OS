@@ -1,4 +1,4 @@
-import { onEvent } from '../lib/event-bus.js';
+import { onEvent, emitEvent } from '../lib/event-bus.js';
 import { db } from '../lib/db.js';
 
 /**
@@ -6,24 +6,56 @@ import { db } from '../lib/db.js';
  * Call this once at startup to wire up the event-driven architecture.
  */
 export function registerEventHandlers() {
-  // When a lead is created, auto-score and check for inbound routing
+  // When a lead is created, auto-score and route inbound leads
   onEvent('lead.created', async (payload) => {
     const { leadId, organizationId } = payload as { leadId: string; organizationId: string };
     console.log(`[Event] lead.created: ${leadId}`);
 
-    // Auto-score is handled by the scoring service on demand
-    // For inbound leads, trigger immediate scoring
     const lead = await db.lead.findUnique({ where: { id: leadId } });
-    if (lead?.inboundSource) {
-      // Import will trigger enrichment -> scoring -> NBA chain via API calls
-      console.log(`[Event] Inbound lead detected: ${leadId}, source: ${lead.inboundSource}`);
+    if (!lead) return;
+
+    // All new leads get scored immediately — NBA must never be empty
+    try {
+      const { scoreLead } = await import('../services/scoring-service.js');
+      await scoreLead({ leadId, organizationId, triggerEvent: 'lead_created' });
+      console.log(`[Event] Auto-scored new lead: ${leadId}`);
+    } catch (err: any) {
+      console.error(`[Event] Auto-score failed for ${leadId}:`, err.message);
+    }
+
+    // Inbound leads get full routing: enrich -> score -> NBA -> FUB sync
+    if (lead.inboundSource) {
+      console.log(`[Event] Inbound lead routing: ${leadId}, source: ${lead.inboundSource}`);
+
+      // Try Apollo enrichment (non-blocking)
+      if (lead.email) {
+        try {
+          const { importAndEnrichLead } = await import('../services/apollo-service.js');
+          await importAndEnrichLead(leadId, organizationId);
+        } catch (err: any) {
+          console.warn(`[Event] Apollo enrich failed for inbound lead ${leadId}:`, err.message);
+        }
+      }
+
+      // Trigger FUB sync
+      await emitEvent('followupboss.sync_requested', { leadId, organizationId });
     }
   });
 
   // When a lead is enriched, trigger re-scoring
   onEvent('lead.enriched', async (payload) => {
-    const { leadId } = payload as { leadId: string };
+    const { leadId } = payload as { leadId: string; organizationId?: string };
     console.log(`[Event] lead.enriched: ${leadId} — triggering rescore`);
+
+    const lead = await db.lead.findUnique({ where: { id: leadId } });
+    if (!lead) return;
+
+    try {
+      const { scoreLead } = await import('../services/scoring-service.js');
+      await scoreLead({ leadId, organizationId: lead.organizationId, triggerEvent: 'enrichment_completed' });
+    } catch (err: any) {
+      console.error(`[Event] Rescore after enrichment failed for ${leadId}:`, err.message);
+    }
   });
 
   // When a lead is scored, check NBA for follow-up actions
@@ -68,7 +100,7 @@ export function registerEventHandlers() {
     });
   });
 
-  // Inbound reply — trigger classification and re-scoring
+  // Inbound reply — auto-classify and re-score
   onEvent('inbound.reply_received', async (payload) => {
     const { messageId, leadId, conversationId, organizationId } = payload as {
       messageId: string;
@@ -77,7 +109,23 @@ export function registerEventHandlers() {
       organizationId: string;
     };
     console.log(`[Event] inbound.reply_received: ${messageId} from lead ${leadId}`);
-    // Classification will be triggered by the conversations service
+
+    // Auto-classify the reply
+    try {
+      const { classifyReply } = await import('../services/ai-engine.js');
+      await classifyReply({ messageId, conversationId, organizationId });
+      console.log(`[Event] Auto-classified reply: ${messageId}`);
+    } catch (err: any) {
+      console.error(`[Event] Reply classification failed for ${messageId}:`, err.message);
+    }
+
+    // Re-score lead on reply (engagement event)
+    try {
+      const { scoreLead } = await import('../services/scoring-service.js');
+      await scoreLead({ leadId, organizationId, triggerEvent: 'inbound_reply' });
+    } catch (err: any) {
+      console.error(`[Event] Rescore on reply failed for ${leadId}:`, err.message);
+    }
   });
 
   // Reply classified — update lead score and NBA
@@ -117,10 +165,18 @@ export function registerEventHandlers() {
     });
   });
 
-  // FUB sync requested
+  // FUB sync requested — actually sync the lead
   onEvent('followupboss.sync_requested', async (payload) => {
     const { leadId, organizationId } = payload as { leadId: string; organizationId: string };
     console.log(`[Event] followupboss.sync_requested: ${leadId}`);
+
+    try {
+      const { syncLeadToFUB } = await import('../services/followupboss-service.js');
+      await syncLeadToFUB(leadId, organizationId);
+      console.log(`[Event] FUB sync completed: ${leadId}`);
+    } catch (err: any) {
+      console.warn(`[Event] FUB sync failed for ${leadId}:`, err.message);
+    }
   });
 
   // OpenClaw job completed

@@ -34,10 +34,18 @@ webhooks.post('/twilio/inbound', async (c) => {
 // ==================== TWILIO STATUS CALLBACK ====================
 
 webhooks.post('/twilio/status', async (c) => {
+  // Validate Twilio signature
+  const signature = c.req.header('X-Twilio-Signature') || '';
+  const url = `${c.req.header('X-Forwarded-Proto') || 'https'}://${c.req.header('Host')}${c.req.path}`;
   const body = await c.req.parseBody();
+
   const params: Record<string, string> = {};
   for (const [key, val] of Object.entries(body)) {
     if (typeof val === 'string') params[key] = val;
+  }
+
+  if (signature && !twilioService.validateTwilioSignature(url, params, signature)) {
+    return c.json({ error: 'Invalid signature' }, 403);
   }
 
   await twilioService.processStatusWebhook({
