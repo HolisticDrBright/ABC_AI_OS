@@ -9,6 +9,13 @@ import leadRoutes from './routes/leads.js';
 import campaignRoutes from './routes/campaigns.js';
 import messageRoutes from './routes/messages.js';
 import dashboardRoutes from './routes/dashboard.js';
+import apolloRoutes from './routes/apollo.js';
+import webhookRoutes from './routes/webhooks.js';
+import aiRoutes from './routes/ai.js';
+import openclawRoutes from './routes/openclaw.js';
+import fubRoutes from './routes/followupboss.js';
+import taskRoutes from './routes/tasks.js';
+import neighborhoodRoutes from './routes/neighborhood.js';
 
 const app = new Hono();
 
@@ -22,12 +29,27 @@ app.use('*', logger());
 // Health check
 app.get('/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
-// Routes
+// Auth
 app.route('/api/auth', authRoutes);
+
+// Core resources
 app.route('/api/leads', leadRoutes);
 app.route('/api/campaigns', campaignRoutes);
 app.route('/api/messages', messageRoutes);
 app.route('/api/dashboard', dashboardRoutes);
+app.route('/api/tasks', taskRoutes);
+
+// Integrations
+app.route('/api/apollo', apolloRoutes);
+app.route('/api/followupboss', fubRoutes);
+app.route('/api/openclaw', openclawRoutes);
+app.route('/api/neighborhood', neighborhoodRoutes);
+
+// AI
+app.route('/api/ai', aiRoutes);
+
+// Webhooks (unauthenticated — validated by signature)
+app.route('/api/webhooks', webhookRoutes);
 
 // Error handler
 app.onError(errorHandler);

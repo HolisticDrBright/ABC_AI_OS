@@ -129,6 +129,86 @@ class ApiClient {
   getConversation(leadId: string) {
     return this.request<any>(`/messages/conversation/${leadId}`);
   }
+
+  // AI
+  aiScoreLead(leadId: string) {
+    return this.request<any>(`/ai/score/${leadId}`, { method: 'POST', body: JSON.stringify({}) });
+  }
+
+  aiGenerateMessage(data: { leadId: string; personaMode?: string; angle?: string; campaignObjective?: string }) {
+    return this.request<any>('/ai/generate-message', { method: 'POST', body: JSON.stringify(data) });
+  }
+
+  aiClassifyReply(messageId: string, conversationId: string) {
+    return this.request<any>('/ai/classify', { method: 'POST', body: JSON.stringify({ messageId, conversationId }) });
+  }
+
+  aiComputeNBA(leadId: string) {
+    return this.request<any>(`/ai/nba/${leadId}`, { method: 'POST', body: JSON.stringify({}) });
+  }
+
+  // Apollo
+  apolloSearch(params: { q_keywords?: string; person_titles?: string[]; person_locations?: string[] }) {
+    return this.request<any>('/apollo/search', { method: 'POST', body: JSON.stringify(params) });
+  }
+
+  apolloImport(params: { q_keywords?: string; person_titles?: string[]; person_locations?: string[] }) {
+    return this.request<any>('/apollo/import', { method: 'POST', body: JSON.stringify(params) });
+  }
+
+  apolloEnrich(leadId: string) {
+    return this.request<any>(`/apollo/enrich/${leadId}`, { method: 'POST' });
+  }
+
+  // Follow Up Boss
+  fubSyncLead(leadId: string) {
+    return this.request<any>(`/followupboss/sync/${leadId}`, { method: 'POST' });
+  }
+
+  fubPushNote(leadId: string, note: string) {
+    return this.request<any>(`/followupboss/note/${leadId}`, { method: 'POST', body: JSON.stringify({ note }) });
+  }
+
+  fubImportStale() {
+    return this.request<any>('/followupboss/import-stale', { method: 'POST' });
+  }
+
+  fubSyncLog(leadId: string) {
+    return this.request<any>(`/followupboss/sync-log/${leadId}`);
+  }
+
+  // OpenClaw
+  runWorkflow(leadId: string, workflowType: string) {
+    return this.request<any>('/openclaw/run', { method: 'POST', body: JSON.stringify({ leadId, workflowType }) });
+  }
+
+  getOpenclawJobs(status?: string) {
+    const qs = status ? `?status=${status}` : '';
+    return this.request<any>(`/openclaw/jobs${qs}`);
+  }
+
+  // Tasks
+  getTasks(status?: string) {
+    const qs = status ? `?status=${status}` : '';
+    return this.request<any>(`/tasks${qs}`);
+  }
+
+  updateTaskStatus(id: string, status: string) {
+    return this.request<any>(`/tasks/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
+  }
+
+  getEscalationView(taskId: string) {
+    return this.request<any>(`/tasks/escalation/${taskId}`);
+  }
+
+  // Neighborhood
+  getNeighborhoodData(zipCode: string) {
+    return this.request<any>(`/neighborhood/${zipCode}`);
+  }
+
+  seedNeighborhoodData(records: any[]) {
+    return this.request<any>('/neighborhood/bulk', { method: 'POST', body: JSON.stringify({ records }) });
+  }
 }
 
 export const api = new ApiClient();

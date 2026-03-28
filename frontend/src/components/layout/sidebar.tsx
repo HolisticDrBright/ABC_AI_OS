@@ -10,6 +10,9 @@ const navItems = [
   { href: '/leads', label: 'Leads', icon: '◉', shortcut: 'L' },
   { href: '/campaigns', label: 'Campaigns', icon: '▶', shortcut: 'C' },
   { href: '/conversations', label: 'Inbox', icon: '◫', shortcut: 'I' },
+  { href: '/escalation', label: 'Escalations', icon: '⚡', shortcut: 'E' },
+  { href: '/openclaw', label: 'Research', icon: '⊛', shortcut: 'R' },
+  { href: '/playbooks', label: 'Playbooks', icon: '☰', shortcut: 'P' },
   { href: '/analytics', label: 'Analytics', icon: '◧', shortcut: 'A' },
   { href: '/settings', label: 'Settings', icon: '⚙', shortcut: 'S' },
 ];
