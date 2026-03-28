@@ -1,0 +1,517 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users              User[]
+  leads              Lead[]
+  segments           Segment[]
+  campaigns          Campaign[]
+  playbooks          Playbook[]
+  messages           Message[]
+  conversations      Conversation[]
+  tasks              Task[]
+  openclawJobs       OpenclawJob[]
+  auditLogs          AuditLog[]
+
+  @@map("organizations")
+}
+
+model User {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  name           String
+  email          String   @unique
+  passwordHash   String   @map("password_hash")
+  role           String   @default("agent")
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization       Organization        @relation(fields: [organizationId], references: [id])
+  ownedLeads         Lead[]              @relation("LeadOwner")
+  createdCampaigns   Campaign[]          @relation("CampaignCreator")
+  assignedConversations Conversation[]   @relation("ConversationAssignee")
+  assignedTasks      Task[]              @relation("TaskAssignee")
+  sentMessages       Message[]           @relation("MessageSender")
+  auditLogs          AuditLog[]
+
+  @@map("users")
+}
+
+model Lead {
+  id                 String    @id @default(uuid())
+  organizationId     String    @map("organization_id")
+  externalSourceType String?   @map("external_source_type")
+  externalSourceId   String?   @map("external_source_id")
+  firstName          String?   @map("first_name")
+  lastName           String?   @map("last_name")
+  fullName           String?   @map("full_name")
+  email              String?
+  phone              String?
+  company            String?
+  title              String?
+  city               String?
+  state              String?
+  zip                String?
+  leadStatus         String    @default("new") @map("lead_status")
+  ownerUserId        String?   @map("owner_user_id")
+  doNotContact       Boolean   @default(false) @map("do_not_contact")
+  sourceLabel        String?   @map("source_label")
+  inboundSource      String?   @map("inbound_source")
+  inboundReceivedAt  DateTime? @map("inbound_received_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  organization        Organization              @relation(fields: [organizationId], references: [id])
+  owner               User?                     @relation("LeadOwner", fields: [ownerUserId], references: [id])
+  identity            LeadIdentity?
+  enrichments         LeadEnrichment[]
+  scores              LeadScore[]
+  personaMemories     LeadPersonaMemory[]
+  leadSegments        LeadSegment[]
+  campaignLeads       CampaignLead[]
+  messages            Message[]
+  conversations       Conversation[]
+  tasks               Task[]
+  followupbossSyncLogs FollowupbossSyncLog[]
+  apolloSyncLogs      ApolloSyncLog[]
+  openclawJobs        OpenclawJob[]
+  aiDecisions         AiDecision[]
+
+  @@index([organizationId])
+  @@index([email])
+  @@index([phone])
+  @@index([leadStatus])
+  @@map("leads")
+}
+
+model LeadIdentity {
+  id                  String   @id @default(uuid())
+  leadId              String   @unique @map("lead_id")
+  apolloContactId     String?  @map("apollo_contact_id")
+  followupbossPersonId String? @map("followupboss_person_id")
+  twilioPrimaryPhone  String?  @map("twilio_primary_phone")
+  normalizedEmail     String?  @map("normalized_email")
+  normalizedPhone     String?  @map("normalized_phone")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  lead Lead @relation(fields: [leadId], references: [id])
+
+  @@index([apolloContactId])
+  @@index([followupbossPersonId])
+  @@index([normalizedEmail])
+  @@index([normalizedPhone])
+  @@map("lead_identities")
+}
+
+model LeadEnrichment {
+  id                String   @id @default(uuid())
+  leadId            String   @map("lead_id")
+  provider          String
+  rawPayloadJson    Json     @map("raw_payload_json")
+  enrichmentVersion String?  @map("enrichment_version")
+  confidenceScore   Float?   @map("confidence_score")
+  lastEnrichedAt    DateTime @map("last_enriched_at")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  lead Lead @relation(fields: [leadId], references: [id])
+
+  @@index([leadId])
+  @@map("lead_enrichment")
+}
+
+model LeadScore {
+  id                    String   @id @default(uuid())
+  leadId                String   @map("lead_id")
+  totalScore            Float    @map("total_score")
+  fitScore              Float    @map("fit_score")
+  urgencyScore          Float    @map("urgency_score")
+  engagementScore       Float    @map("engagement_score")
+  motivationScore       Float    @map("motivation_score")
+  closeProbability      Float    @map("close_probability")
+  preferredChannel      String?  @map("preferred_channel")
+  recommendedAngle      String?  @map("recommended_angle")
+  recommendedPersona    String?  @map("recommended_persona")
+  nextBestAction        String   @map("next_best_action")
+  nextBestActionReason  String   @map("next_best_action_reason")
+  urgencyLevel          String?  @map("urgency_level")
+  recommendedDelayHours Int?     @map("recommended_delay_hours")
+  shouldRunOpenclaw     Boolean  @default(false) @map("should_run_openclaw")
+  shouldCreateHumanTask Boolean  @default(false) @map("should_create_human_task")
+  explanationJson       Json?    @map("explanation_json")
+  modelVersion          String?  @map("model_version")
+  scoredAt              DateTime @map("scored_at")
+  scoreDecayApplied     Boolean  @default(false) @map("score_decay_applied")
+  lastEngagementEvent   String?  @map("last_engagement_event")
+
+  lead Lead @relation(fields: [leadId], references: [id])
+
+  @@index([leadId])
+  @@index([totalScore])
+  @@map("lead_scores")
+}
+
+model LeadPersonaMemory {
+  id              String   @id @default(uuid())
+  leadId          String   @map("lead_id")
+  personaMode     String   @map("persona_mode")
+  toneSignal      String   @map("tone_signal")
+  worked          Boolean
+  sourceMessageId String?  @map("source_message_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  lead Lead @relation(fields: [leadId], references: [id])
+
+  @@index([leadId])
+  @@map("lead_persona_memory")
+}
+
+model Segment {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  name           String
+  description    String?
+  criteriaJson   Json?    @map("criteria_json")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization  @relation(fields: [organizationId], references: [id])
+  leadSegments  LeadSegment[]
+  campaigns     Campaign[]
+
+  @@map("segments")
+}
+
+model LeadSegment {
+  id         String   @id @default(uuid())
+  leadId     String   @map("lead_id")
+  segmentId  String   @map("segment_id")
+  assignedAt DateTime @default(now()) @map("assigned_at")
+
+  lead    Lead    @relation(fields: [leadId], references: [id])
+  segment Segment @relation(fields: [segmentId], references: [id])
+
+  @@unique([leadId, segmentId])
+  @@map("lead_segments")
+}
+
+model Campaign {
+  id               String   @id @default(uuid())
+  organizationId   String   @map("organization_id")
+  name             String
+  description      String?
+  status           String   @default("draft")
+  targetSegmentId  String?  @map("target_segment_id")
+  personaMode      String?  @map("persona_mode")
+  objective        String?
+  approvalMode     String   @default("manual") @map("approval_mode")
+  splitTestEnabled Boolean  @default(false) @map("split_test_enabled")
+  splitTestRatio   Float?   @map("split_test_ratio")
+  rulesJson        Json?    @map("rules_json")
+  createdByUserId  String?  @map("created_by_user_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  organization   Organization      @relation(fields: [organizationId], references: [id])
+  targetSegment  Segment?          @relation(fields: [targetSegmentId], references: [id])
+  createdBy      User?             @relation("CampaignCreator", fields: [createdByUserId], references: [id])
+  campaignLeads  CampaignLead[]
+  variants       CampaignVariant[]
+  messages       Message[]
+
+  @@index([organizationId])
+  @@index([status])
+  @@map("campaigns")
+}
+
+model CampaignLead {
+  id          String    @id @default(uuid())
+  campaignId  String    @map("campaign_id")
+  leadId      String    @map("lead_id")
+  status      String    @default("active")
+  currentStep Int       @default(0) @map("current_step")
+  variant     String?
+  enrolledAt  DateTime  @default(now()) @map("enrolled_at")
+  exitedAt    DateTime? @map("exited_at")
+
+  campaign Campaign @relation(fields: [campaignId], references: [id])
+  lead     Lead     @relation(fields: [leadId], references: [id])
+
+  @@unique([campaignId, leadId])
+  @@map("campaign_leads")
+}
+
+model CampaignVariant {
+  id             String   @id @default(uuid())
+  campaignId     String   @map("campaign_id")
+  variantLabel   String   @map("variant_label")
+  promptTemplate String?  @map("prompt_template")
+  angle          String?
+  personaMode    String?  @map("persona_mode")
+  messageCount   Int      @default(0) @map("message_count")
+  replyRate      Float?   @map("reply_rate")
+  positiveRate   Float?   @map("positive_rate")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  campaign Campaign @relation(fields: [campaignId], references: [id])
+
+  @@map("campaign_variants")
+}
+
+model Playbook {
+  id                  String   @id @default(uuid())
+  organizationId      String   @map("organization_id")
+  name                String
+  type                String
+  description         String?
+  promptTemplate      String?  @map("prompt_template")
+  branchLogicJson     Json?    @map("branch_logic_json")
+  objectionLogicJson  Json?    @map("objection_logic_json")
+  escalationRulesJson Json?    @map("escalation_rules_json")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@map("playbooks")
+}
+
+model Message {
+  id                String   @id @default(uuid())
+  organizationId    String   @map("organization_id")
+  leadId            String   @map("lead_id")
+  campaignId        String?  @map("campaign_id")
+  direction         String
+  channel           String   @default("sms")
+  provider          String?
+  providerMessageId String?  @map("provider_message_id")
+  body              String
+  status            String   @default("pending")
+  sentByType        String?  @map("sent_by_type")
+  sentByUserId      String?  @map("sent_by_user_id")
+  aiGenerated       Boolean  @default(false) @map("ai_generated")
+  variant           String?
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  organization Organization    @relation(fields: [organizationId], references: [id])
+  lead         Lead            @relation(fields: [leadId], references: [id])
+  campaign     Campaign?       @relation(fields: [campaignId], references: [id])
+  sentBy       User?           @relation("MessageSender", fields: [sentByUserId], references: [id])
+  events       MessageEvent[]
+  classifications ConversationClassification[]
+
+  @@index([leadId])
+  @@index([campaignId])
+  @@index([providerMessageId])
+  @@map("messages")
+}
+
+model MessageEvent {
+  id               String   @id @default(uuid())
+  messageId        String   @map("message_id")
+  eventType        String   @map("event_type")
+  eventPayloadJson Json?    @map("event_payload_json")
+  occurredAt       DateTime @map("occurred_at")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  message Message @relation(fields: [messageId], references: [id])
+
+  @@index([messageId])
+  @@map("message_events")
+}
+
+model Conversation {
+  id             String    @id @default(uuid())
+  organizationId String    @map("organization_id")
+  leadId         String    @map("lead_id")
+  channel        String    @default("sms")
+  threadStatus   String    @default("open") @map("thread_status")
+  lastMessageAt  DateTime? @map("last_message_at")
+  assignedUserId String?   @map("assigned_user_id")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  organization    Organization                @relation(fields: [organizationId], references: [id])
+  lead            Lead                        @relation(fields: [leadId], references: [id])
+  assignedUser    User?                       @relation("ConversationAssignee", fields: [assignedUserId], references: [id])
+  classifications ConversationClassification[]
+  tasks           Task[]
+
+  @@unique([leadId, channel])
+  @@map("conversations")
+}
+
+model ConversationClassification {
+  id              String   @id @default(uuid())
+  conversationId  String   @map("conversation_id")
+  messageId       String   @map("message_id")
+  classification  String
+  confidence      Float
+  explanationJson Json?    @map("explanation_json")
+  suggestedReply  String?  @map("suggested_reply")
+  suggestedAction String?  @map("suggested_action")
+  modelVersion    String?  @map("model_version")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+  message      Message      @relation(fields: [messageId], references: [id])
+
+  @@index([conversationId])
+  @@map("conversation_classifications")
+}
+
+model Task {
+  id                String    @id @default(uuid())
+  organizationId    String    @map("organization_id")
+  leadId            String?   @map("lead_id")
+  conversationId    String?   @map("conversation_id")
+  assignedUserId    String?   @map("assigned_user_id")
+  taskType          String    @map("task_type")
+  title             String
+  description       String?
+  dueAt             DateTime? @map("due_at")
+  status            String    @default("pending")
+  source            String?
+  escalationSurface String?   @map("escalation_surface")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  organization Organization  @relation(fields: [organizationId], references: [id])
+  lead         Lead?         @relation(fields: [leadId], references: [id])
+  conversation Conversation? @relation(fields: [conversationId], references: [id])
+  assignedUser User?         @relation("TaskAssignee", fields: [assignedUserId], references: [id])
+
+  @@index([organizationId])
+  @@index([assignedUserId])
+  @@index([status])
+  @@map("tasks")
+}
+
+model FollowupbossSyncLog {
+  id                  String   @id @default(uuid())
+  leadId              String?  @map("lead_id")
+  operationType       String   @map("operation_type")
+  requestPayloadJson  Json?    @map("request_payload_json")
+  responsePayloadJson Json?    @map("response_payload_json")
+  status              String
+  errorMessage        String?  @map("error_message")
+  syncedAt            DateTime @map("synced_at")
+
+  lead Lead? @relation(fields: [leadId], references: [id])
+
+  @@index([leadId])
+  @@map("followupboss_sync_log")
+}
+
+model ApolloSyncLog {
+  id                  String   @id @default(uuid())
+  leadId              String?  @map("lead_id")
+  operationType       String   @map("operation_type")
+  requestPayloadJson  Json?    @map("request_payload_json")
+  responsePayloadJson Json?    @map("response_payload_json")
+  status              String
+  errorMessage        String?  @map("error_message")
+  syncedAt            DateTime @map("synced_at")
+
+  lead Lead? @relation(fields: [leadId], references: [id])
+
+  @@index([leadId])
+  @@map("apollo_sync_log")
+}
+
+model TwilioWebhookLog {
+  id                String   @id @default(uuid())
+  providerMessageId String?  @map("provider_message_id")
+  webhookType       String   @map("webhook_type")
+  payloadJson       Json     @map("payload_json")
+  processed         Boolean  @default(false)
+  errorMessage      String?  @map("error_message")
+  receivedAt        DateTime @map("received_at")
+
+  @@index([providerMessageId])
+  @@map("twilio_webhook_log")
+}
+
+model OpenclawJob {
+  id                String    @id @default(uuid())
+  organizationId    String    @map("organization_id")
+  leadId            String?   @map("lead_id")
+  workflowType      String    @map("workflow_type")
+  inputPayloadJson  Json      @map("input_payload_json")
+  status            String    @default("pending")
+  outputPayloadJson Json?     @map("output_payload_json")
+  errorMessage      String?   @map("error_message")
+  startedAt         DateTime? @map("started_at")
+  completedAt       DateTime? @map("completed_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  lead         Lead?        @relation(fields: [leadId], references: [id])
+
+  @@index([organizationId])
+  @@index([status])
+  @@map("openclaw_jobs")
+}
+
+model AiDecision {
+  id           String   @id @default(uuid())
+  leadId       String?  @map("lead_id")
+  decisionType String   @map("decision_type")
+  inputJson    Json     @map("input_json")
+  outputJson   Json     @map("output_json")
+  modelVersion String?  @map("model_version")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  lead Lead? @relation(fields: [leadId], references: [id])
+
+  @@index([leadId])
+  @@index([decisionType])
+  @@map("ai_decisions")
+}
+
+model NeighborhoodIntelligence {
+  id                          String   @id @default(uuid())
+  zipCode                     String   @map("zip_code")
+  dataSource                  String?  @map("data_source")
+  avgDaysOnMarket             Float?   @map("avg_days_on_market")
+  medianSalePrice             Float?   @map("median_sale_price")
+  offMarketTransactionsLast30d Int?    @map("off_market_transactions_last_30d")
+  listToSaleRatio             Float?   @map("list_to_sale_ratio")
+  fetchedAt                   DateTime @map("fetched_at")
+  createdAt                   DateTime @default(now()) @map("created_at")
+
+  @@index([zipCode])
+  @@map("neighborhood_intelligence")
+}
+
+model AuditLog {
+  id             String   @id @default(uuid())
+  organizationId String?  @map("organization_id")
+  userId         String?  @map("user_id")
+  entityType     String   @map("entity_type")
+  entityId       String?  @map("entity_id")
+  action         String
+  metadataJson   Json?    @map("metadata_json")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  user         User?         @relation(fields: [userId], references: [id])
+
+  @@index([organizationId])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}

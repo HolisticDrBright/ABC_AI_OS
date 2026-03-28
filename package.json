@@ -1,0 +1,5 @@
+{
+  "name": "abc-ai-os",
+  "private": true,
+  "workspaces": ["frontend", "backend"]
+}
