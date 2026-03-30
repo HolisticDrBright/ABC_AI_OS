@@ -57,6 +57,18 @@ webhooks.post('/twilio/status', async (c) => {
   return c.text('<Response></Response>', 200, { 'Content-Type': 'text/xml' });
 });
 
+// ==================== TWILIO VOICE (STUB) ====================
+
+webhooks.post('/twilio/voice', async (c) => {
+  // TODO: Implement voice handling when VOICE_ENABLED=true
+  // For now, respond with TwiML that says we'll call back
+  return c.text(
+    `<Response><Say>Thank you for calling. An agent will return your call shortly.</Say></Response>`,
+    200,
+    { 'Content-Type': 'text/xml' },
+  );
+});
+
 // ==================== FOLLOW UP BOSS WEBHOOK ====================
 
 webhooks.post('/followupboss', async (c) => {

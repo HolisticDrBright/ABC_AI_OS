@@ -88,6 +88,7 @@ model Lead {
   apolloSyncLogs      ApolloSyncLog[]
   openclawJobs        OpenclawJob[]
   aiDecisions         AiDecision[]
+  propertyData        LeadPropertyData[]
 
   @@index([organizationId])
   @@index([email])
@@ -154,6 +155,7 @@ model LeadScore {
   explanationJson       Json?    @map("explanation_json")
   modelVersion          String?  @map("model_version")
   scoredAt              DateTime @map("scored_at")
+  predictiveSellProbability Float? @map("predictive_sell_probability")
   scoreDecayApplied     Boolean  @default(false) @map("score_decay_applied")
   lastEngagementEvent   String?  @map("last_engagement_event")
 
@@ -424,6 +426,7 @@ model ApolloSyncLog {
   requestPayloadJson  Json?    @map("request_payload_json")
   responsePayloadJson Json?    @map("response_payload_json")
   status              String
+  creditsUsed         Int?     @map("credits_used")
   errorMessage        String?  @map("error_message")
   syncedAt            DateTime @map("synced_at")
 
@@ -454,6 +457,7 @@ model OpenclawJob {
   inputPayloadJson  Json      @map("input_payload_json")
   status            String    @default("pending")
   outputPayloadJson Json?     @map("output_payload_json")
+  executionPath     String?   @map("execution_path")
   errorMessage      String?   @map("error_message")
   startedAt         DateTime? @map("started_at")
   completedAt       DateTime? @map("completed_at")
@@ -474,6 +478,8 @@ model AiDecision {
   inputJson    Json     @map("input_json")
   outputJson   Json     @map("output_json")
   modelVersion String?  @map("model_version")
+  tokensUsed   Int?     @map("tokens_used")
+  latencyMs    Int?     @map("latency_ms")
   createdAt    DateTime @default(now()) @map("created_at")
 
   lead Lead? @relation(fields: [leadId], references: [id])
@@ -496,6 +502,38 @@ model NeighborhoodIntelligence {
 
   @@index([zipCode])
   @@map("neighborhood_intelligence")
+}
+
+model LeadPropertyData {
+  id                   String    @id @default(uuid())
+  leadId               String    @map("lead_id")
+  rawAddress           String?   @map("raw_address")
+  normalizedAddress    String?   @map("normalized_address")
+  city                 String?
+  state                String?
+  zip                  String?
+  estimatedValue       Float?    @map("estimated_value")
+  equityEstimate       Float?    @map("equity_estimate")
+  mortgageBalance      Float?    @map("mortgage_balance")
+  yearsOwned           Float?    @map("years_owned")
+  ownershipType        String?   @map("ownership_type")
+  occupancyStatus      String?   @map("occupancy_status")
+  absenteeOwner        Boolean   @default(false) @map("absentee_owner")
+  taxDelinquent        Boolean   @default(false) @map("tax_delinquent")
+  preForeclosure       Boolean   @default(false) @map("pre_foreclosure")
+  lienCount            Int?      @map("lien_count")
+  lastSaleDate         DateTime? @map("last_sale_date")
+  lastSalePrice        Float?    @map("last_sale_price")
+  foreclosureRiskScore Float?    @map("foreclosure_risk_score")
+  dataSource           String?   @map("data_source")
+  importedAt           DateTime  @default(now()) @map("imported_at")
+  createdAt            DateTime  @default(now()) @map("created_at")
+
+  lead Lead @relation(fields: [leadId], references: [id])
+
+  @@index([leadId])
+  @@index([zip])
+  @@map("lead_property_data")
 }
 
 model AuditLog {

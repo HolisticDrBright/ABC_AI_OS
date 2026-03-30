@@ -16,6 +16,8 @@ import openclawRoutes from './routes/openclaw.js';
 import fubRoutes from './routes/followupboss.js';
 import taskRoutes from './routes/tasks.js';
 import neighborhoodRoutes from './routes/neighborhood.js';
+import propstreamRoutes from './routes/propstream.js';
+import calcomRoutes from './routes/calcom.js';
 import analyticsRoutes from './routes/analytics.js';
 import auditRoutes from './routes/audit.js';
 import complianceRoutes from './routes/compliance.js';
@@ -47,6 +49,8 @@ app.route('/api/apollo', apolloRoutes);
 app.route('/api/followupboss', fubRoutes);
 app.route('/api/openclaw', openclawRoutes);
 app.route('/api/neighborhood', neighborhoodRoutes);
+app.route('/api/propstream', propstreamRoutes);
+app.route('/api/calcom', calcomRoutes);
 
 // AI
 app.route('/api/ai', aiRoutes);

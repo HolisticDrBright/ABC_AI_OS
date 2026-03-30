@@ -250,6 +250,28 @@ class ApiClient {
   getDncList() {
     return this.request<any>('/compliance/dnc');
   }
+
+  // PropStream
+  importPropStreamCSV(csvData: string) {
+    return this.request<any>('/propstream/import-csv', { method: 'POST', body: JSON.stringify({ csvData }) });
+  }
+
+  getPropStreamColumnGuide() {
+    return this.request<any>('/propstream/column-guide');
+  }
+
+  // Cal.com
+  getBookingUrl(agentSlug: string, leadName?: string, leadEmail?: string) {
+    const params = new URLSearchParams({ agentSlug });
+    if (leadName) params.set('leadName', leadName);
+    if (leadEmail) params.set('leadEmail', leadEmail);
+    return this.request<any>(`/calcom/booking-url?${params}`);
+  }
+
+  // Circuit breaker status
+  getCircuitBreakerStatus() {
+    return this.request<any>('/compliance/status');
+  }
 }
 
 export const api = new ApiClient();

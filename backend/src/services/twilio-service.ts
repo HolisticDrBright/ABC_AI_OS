@@ -307,20 +307,48 @@ export async function processInboundWebhook(payload: {
   }
 
   // STOP/opt-out detection
-  const stopPatterns = ['stop', 'unsubscribe', 'quit', 'cancel', 'opt out', 'optout', 'end', 'remove'];
+  const stopPatterns = ['stop', 'stopall', 'unsubscribe', 'quit', 'cancel', 'opt out', 'optout', 'end', 'remove'];
   const bodyLower = payload.Body.toLowerCase().trim();
   if (stopPatterns.some((w) => bodyLower === w || bodyLower.startsWith(w + ' '))) {
+    // 1. Mark lead DNC
     await db.lead.update({
       where: { id: identity.leadId },
       data: { doNotContact: true },
     });
 
+    // 2. Halt ALL active campaign enrollments
+    await db.campaignLead.updateMany({
+      where: { leadId: identity.leadId, status: 'active' },
+      data: { status: 'stopped', exitedAt: new Date() },
+    });
+
+    // 3. Send Twilio opt-out confirmation
+    try {
+      const toPhone = identity.twilioPrimaryPhone || identity.lead.phone;
+      if (toPhone && config.twilio.phoneNumber) {
+        const confirmParams = new URLSearchParams({
+          To: toPhone,
+          From: config.twilio.phoneNumber,
+          Body: 'You have been unsubscribed and will no longer receive messages from us.',
+        });
+        const auth = Buffer.from(`${config.twilio.accountSid}:${config.twilio.authToken}`).toString('base64');
+        await fetch(`https://api.twilio.com/2010-04-01/Accounts/${config.twilio.accountSid}/Messages.json`, {
+          method: 'POST',
+          headers: { 'Authorization': `Basic ${auth}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: confirmParams.toString(),
+        });
+      }
+    } catch (err: any) {
+      console.warn(`[Twilio] Opt-out confirmation send failed: ${err.message}`);
+    }
+
+    // 4. Audit log
     await writeAuditLog({
       organizationId: identity.lead.organizationId,
       entityType: 'lead',
       entityId: identity.leadId,
       action: 'dnc_auto_flagged',
-      metadata: { reason: 'STOP keyword', inboundBody: payload.Body },
+      metadata: { reason: 'STOP keyword', inboundBody: payload.Body, campaignsHalted: true },
     });
 
     return { action: 'dnc_flagged', leadId: identity.leadId };

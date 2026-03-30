@@ -87,8 +87,23 @@ export async function syncLeadToFUB(leadId: string, organizationId: string, user
         requestPayload,
       );
     } else {
-      // Create new
-      fubPerson = await fubRequest<any>('/people', 'POST', requestPayload);
+      // Create new — handle 409 Conflict (person already exists) as update
+      try {
+        fubPerson = await fubRequest<any>('/people', 'POST', requestPayload);
+      } catch (err: any) {
+        if (err.message?.includes('409')) {
+          // Person exists in FUB — search by email to get ID, then update
+          const searchResult = await fubRequest<any>(`/people?emails[]=${encodeURIComponent(lead.email || '')}`);
+          const existing = searchResult?.people?.[0];
+          if (existing) {
+            fubPerson = await fubRequest<any>(`/people/${existing.id}`, 'PUT', requestPayload);
+          } else {
+            throw err;
+          }
+        } else {
+          throw err;
+        }
+      }
     }
 
     // Store FUB person ID
@@ -140,10 +155,13 @@ export async function pushNoteToFUB(leadId: string, organizationId: string, note
     throw new ValidationError('Lead not synced to FUB yet');
   }
 
+  // Prefix all AI-generated notes so agents can distinguish them
+  const prefixedNote = `[ABC AI OS] ${note}`;
+
   const result = await fubRequest<any>('/notes', 'POST', {
     personId: parseInt(lead.identity.followupbossPersonId),
-    body: note,
-    subject: 'ABC AI OS Note',
+    body: prefixedNote,
+    subject: '[ABC AI OS] Note',
   });
 
   await db.followupbossSyncLog.create({
